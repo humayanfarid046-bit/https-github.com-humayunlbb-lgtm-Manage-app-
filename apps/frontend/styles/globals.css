@@ -1,0 +1,8 @@
+tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Simple dark mode background handling */
+html.dark {
+  --bg: #0f172a;
+}
