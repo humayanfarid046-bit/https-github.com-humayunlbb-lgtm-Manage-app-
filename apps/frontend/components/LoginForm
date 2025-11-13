@@ -1,0 +1,21 @@
+import { useState } from 'react'
+
+export default function LoginForm({ onSubmit, error }: any) {
+  const [email,setEmail]=useState('')
+  const [password,setPassword]=useState('')
+
+  return (
+    <form onSubmit={e=>{e.preventDefault(); onSubmit(email,password) }} className="bg-white dark:bg-gray-800 p-6 rounded shadow">
+      <h3 className="text-lg font-semibold mb-4">Login</h3>
+      {error && <div className="text-sm text-red-500 mb-3">{error}</div>}
+      <label className="block mb-2">
+        <span className="text-sm">Email</span>
+        <input value={email} onChange={e=>setEmail(e.target.value)} className="mt-1 block w-full rounded border-gray-200 p-2 bg-transparent" />
+      </label>
+      <label className="block mb-4">
+        <span className="text-sm">Password</span>
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 block w-full rounded border-gray-200 p-2 bg-transparent" />
+      </label>
+      <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded">Sign in</button>
+    </form>
+  )
