@@ -450,7 +450,243 @@ app.post('/api/assistant', requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'AI error', error: String(err) });
   }
+});<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>College Management - Mini UI (Cookie refresh)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div class="max-w-5xl mx-auto p-4">
+    <header class="flex items-center justify-between py-4">
+      <h1 class="text-xl font-bold">College Management (Mini)</h1>
+      <div id="user-area"></div>
+    </header>
+
+    <main id="app">
+      <section id="login-section" class="bg-white p-6 rounded shadow max-w-md mx-auto">
+        <h2 class="text-lg font-semibold mb-3">লগইন / রেজিস্টার</h2>
+        <form id="login-form" class="space-y-2">
+          <input id="email" class="w-full p-2 border rounded" placeholder="ইমেইল" />
+          <input id="password" type="password" class="w-full p-2 border rounded" placeholder="পাসওয়ার্ড" />
+          <div class="flex gap-2">
+            <button id="login-btn" type="button" class="px-4 py-2 bg-indigo-600 text-white rounded">Login</button>
+            <button id="register-btn" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded">Register</button>
+          </div>
+        </form>
+        <p class="mt-3 text-sm text-slate-500">Seeded admin: admin@college.test / password123</p>
+      </section>
+
+      <section id="dashboard" class="hidden mt-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 bg-white rounded shadow">
+            <h3 class="font-semibold">Quick Actions</h3>
+            <div class="mt-3 space-y-2">
+              <button id="quick-att" class="w-full py-2 bg-indigo-500 text-white rounded">Daily Attendance</button>
+              <button id="new-notice" class="w-full py-2 bg-sky-500 text-white rounded">Add Notice</button>
+              <button id="export-students" class="w-full py-2 bg-green-600 text-white rounded">Export Students CSV</button>
+              <button id="open-chat" class="w-full py-2 bg-gray-700 text-white rounded">Open Support Chat</button>
+              <button id="pay-sim" class="w-full py-2 bg-yellow-500 text-black rounded">Simulate Payment</button>
+            </div>
+          </div>
+          <div class="p-4 bg-white rounded shadow col-span-2">
+            <h3 class="font-semibold">Dashboard Content</h3>
+            <div id="content-area" class="mt-3 space-y-4">
+              <div id="notices" class="bg-slate-50 p-3 rounded"></div>
+              <div id="attendance-list" class="bg-slate-50 p-3 rounded"></div>
+              <div id="result-area" class="bg-slate-50 p-3 rounded"></div>
+              <div id="chat-area" class="bg-slate-50 p-3 rounded hidden">
+                <h4 class="font-semibold">Support Chat</h4>
+                <div id="chat-messages" class="max-h-64 overflow-auto mt-2 space-y-2"></div>
+                <div class="flex gap-2 mt-2">
+                  <input id="chat-input" class="flex-1 p-2 border rounded" placeholder="Type your message..." />
+                  <button id="chat-send" class="px-4 py-2 bg-indigo-600 text-white rounded">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-6 text-sm text-slate-500">Mini demo UI — cookie-based refresh for safer tokens.</footer>
+  </div>
+
+<script>
+const API_BASE = '/api';
+
+function setUserArea(user) {
+  const ua = document.getElementById('user-area');
+  if (!user) {
+    ua.innerHTML = '';
+    return;
+  }
+  ua.innerHTML = \`<div class="flex gap-3 items-center">
+    <div>\${user.name} (\${user.role})</div>
+    <button id="logout-btn" class="px-3 py-1 bg-red-500 text-white rounded">Logout</button>
+  </div>\`;
+  document.getElementById('logout-btn').onclick = async () => {
+    try {
+      await fetch(API_BASE + '/logout', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('access')}});
+    } catch (e) {}
+    localStorage.removeItem('access');
+    localStorage.removeItem('user');
+    location.reload();
+  };
+}
+
+async function apiFetch(path, opts = {}) {
+  const headers = opts.headers || {};
+  const token = localStorage.getItem('access');
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const fetchOpts = { ...opts, headers: { 'Content-Type': 'application/json', ...headers }, credentials: 'same-origin' };
+  const res = await fetch(API_BASE + path, fetchOpts);
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      return apiFetch(path, opts); // retry
+    } else {
+      localStorage.removeItem('access');
+      localStorage.removeItem('user');
+      alert('Session expired. Please login again.');
+      location.reload();
+      throw new Error('Unauthorized');
+    }
+  }
+  return res.json();
+}
+
+async function tryRefresh() {
+  try {
+    const r = await fetch(API_BASE + '/refresh', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }});
+    const j = await r.json();
+    if (r.ok && j.access) {
+      localStorage.setItem('access', j.access);
+      return true;
+    }
+    return false;
+  } catch (e) { return false; }
+}
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch(API_BASE + '/login', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password })});
+    const data = await res.json();
+    if (!res.ok) { alert(data.message || 'Login failed'); return; }
+    // server sets httpOnly cookie for refresh; we store only access and user
+    localStorage.setItem('access', data.access);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    loadDashboard();
+  } catch (e) { alert('Network error'); }
 });
+
+document.getElementById('register-btn').addEventListener('click', async () => {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch(API_BASE + '/register', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password })});
+    const data = await res.json();
+    if (!res.ok) { alert(data.message || 'Register failed'); return; }
+    localStorage.setItem('access', data.access);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    loadDashboard();
+  } catch (e) { alert('Network error'); }
+});
+
+async function loadDashboard() {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (!user) return;
+  setUserArea(user);
+  document.getElementById('login-section').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  // load notices
+  const noticesResp = await apiFetch('/notices');
+  const notices = noticesResp.notices || [];
+  document.getElementById('notices').innerHTML = '<h4 class="font-semibold">Notices</h4>' + (notices.length ? notices.map(n => \`<div class="p-2 border rounded mt-2"><b>\${n.title}</b><div class="text-sm mt-1">\${n.content}</div><div class="text-xs text-slate-500 mt-1">By: \${n.authorId} at \${new Date(n.createdAt).toLocaleString()}</div></div>\`).join('') : '<div class="mt-2 text-slate-500">No notices</div>');
+  // attendance list
+  const attResp = await apiFetch('/attendance');
+  const attends = attResp.attendances || [];
+  document.getElementById('attendance-list').innerHTML = '<h4 class="font-semibold">Attendance</h4>' + (attends.length ? '<ul class="mt-2 space-y-1">' + attends.map(a=>\`<li class="text-sm">\${a.studentId} — \${a.status} — \${new Date(a.date).toLocaleString()}</li>\`).join('') + '</ul>' : '<div class="mt-2 text-slate-500">No records</div>');
+  // result area: simple generator for teachers
+  if (user.role === 'TEACHER' || user.role === 'ADMIN') {
+    document.getElementById('result-area').innerHTML = \`<h4 class="font-semibold">Generate Result</h4>
+      <div class="mt-2 space-y-2">
+        <input id="res-student" class="p-2 border rounded w-full" placeholder="studentId" />
+        <input id="res-term" class="p-2 border rounded w-full" placeholder="Term (e.g., Mid-Term)" />
+        <textarea id="res-marks" class="p-2 border rounded w-full" placeholder='Marks JSON: { "Math": 80, "Eng": 70 }'></textarea>
+        <button id="gen-res" class="px-4 py-2 bg-indigo-600 text-white rounded">Generate</button>
+      </div>\`;
+    document.getElementById('gen-res').onclick = async () => {
+      try {
+        const studentId = document.getElementById('res-student').value;
+        const term = document.getElementById('res-term').value;
+        const marks = JSON.parse(document.getElementById('res-marks').value || '{}');
+        const r = await apiFetch('/results/generate', { method: 'POST', body: JSON.stringify({ studentId, term, marks }) });
+        alert('Result generated: ' + JSON.stringify(r.result || r));
+      } catch (e) { alert('Error or invalid marks JSON'); }
+    };
+  } else {
+    document.getElementById('result-area').innerHTML = '<h4 class="font-semibold">Results</h4><div class="mt-2 text-slate-500">Teachers can generate results.</div>';
+  }
+}
+
+// Quick actions
+document.getElementById('quick-att').onclick = async () => {
+  const studentId = prompt('Student ID to mark present (enter studentId):');
+  if (!studentId) return;
+  try {
+    const res = await apiFetch('/attendance/mark', { method: 'POST', body: JSON.stringify({ studentId, status: 'present' }) });
+    alert('Marked: ' + JSON.stringify(res.attendance || res));
+    loadDashboard();
+  } catch (e) { alert('Failed: ' + e.message); }
+};
+document.getElementById('new-notice').onclick = async () => {
+  const title = prompt('Title:');
+  const content = prompt('Content:');
+  if (!title || !content) return;
+  try {
+    const r = await apiFetch('/notices', { method: 'POST', body: JSON.stringify({ title, content }) });
+    alert('Notice posted');
+    loadDashboard();
+  } catch (e) { alert('Failed: ' + e.message); }
+};
+document.getElementById('export-students').onclick = () => {
+  window.open('/api/export?type=students', '_blank');
+};
+document.getElementById('open-chat').onclick = async () => {
+  document.getElementById('chat-area').classList.toggle('hidden');
+  if (!document.getElementById('chat-area').classList.contains('hidden')) {
+    const m = await apiFetch('/chat/messages');
+    const msgs = m.messages || [];
+    const el = document.getElementById('chat-messages');
+    el.innerHTML = msgs.map(msg => \`<div class="p-2 bg-white rounded"><b>\${msg.name}</b><div class="text-sm">\${msg.text}</div><div class="text-xs text-slate-400">\${new Date(msg.createdAt).toLocaleString()}</div></div>\`).join('');
+    document.getElementById('chat-send').onclick = async () => {
+      const text = document.getElementById('chat-input').value;
+      if (!text) return;
+      await apiFetch('/chat/send', { method: 'POST', body: JSON.stringify({ text }) });
+      document.getElementById('chat-input').value = '';
+      const m2 = await apiFetch('/chat/messages');
+      const msgs2 = m2.messages || [];
+      el.innerHTML = msgs2.map(msg => \`<div class="p-2 bg-white rounded"><b>\${msg.name}</b><div class="text-sm">\${msg.text}</div><div class="text-xs text-slate-400">\${new Date(msg.createdAt).toLocaleString()}</div></div>\`).join('');
+    };
+  }
+};
+
+// On load, if token exists, show dashboard
+window.addEventListener('load', () => {
+  const token = localStorage.getItem('access');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (token && user) {
+    loadDashboard();
+  }
+});
+</script>
+</body>
+</html>
 
 /** Health */
 app.get('/api/health', (_req, res) => {
@@ -465,3 +701,5 @@ app.get('/api/health', (_req, res) => {
     console.log(`Server listening on http://localhost:${PORT}`);
   });
 })();
+
+
