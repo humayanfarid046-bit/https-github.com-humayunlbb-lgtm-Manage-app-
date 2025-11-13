@@ -1,0 +1,17 @@
+export default function DashboardWidgets({ role }: any) {
+  return (
+    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="p-4 bg-white dark:bg-gray-800 rounded shadow">
+        <h4 className="font-semibold">Quick Attendance</h4>
+        <p className="mt-2 text-sm">Take daily attendance with one click.</p>
+      </div>
+      <div className="p-4 bg-white dark:bg-gray-800 rounded shadow">
+        <h4 className="font-semibold">Notices</h4>
+        <p className="mt-2 text-sm">Recent notices and announcements.</p>
+      </div>
+      <div className="p-4 bg-white dark:bg-gray-800 rounded shadow">
+        <h4 className="font-semibold">AI Assistant</h4>
+        <p className="mt-2 text-sm">Ask study suggestions or exam tips.</p>
+      </div>
+    </div>
+  )
